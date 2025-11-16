@@ -123,12 +123,26 @@ class _HomeScreenState extends State<HomeScreen>
         ),
       );
     } catch (e) {
+      debugPrint('Error en pánico: $e');
       if (!mounted) return;
       setState(() => _isLoading = false);
+
+      String errorMsg = 'Error. Intenta de nuevo.';
+      if (e.toString().contains('location') ||
+          e.toString().contains('Location')) {
+        errorMsg = 'Activa el GPS y permisos de ubicación.';
+      } else if (e.toString().contains('sms') || e.toString().contains('SMS')) {
+        errorMsg = 'Falta permiso de SMS.';
+      } else if (e.toString().contains('whatsapp') ||
+          e.toString().contains('WhatsApp')) {
+        errorMsg = 'Abre WhatsApp o instala la app.';
+      }
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Error. Intenta de nuevo.'),
+          content: Text(errorMsg),
           backgroundColor: Colors.red[700],
+          duration: const Duration(seconds: 5),
         ),
       );
     }
