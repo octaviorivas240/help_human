@@ -3,6 +3,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:home_widget/home_widget.dart';
 import 'package:workmanager/workmanager.dart';
 import 'package:overlay_support/overlay_support.dart';
+
 import 'screens/splash_screen.dart';
 import 'screens/onboarding_screen.dart';
 import 'screens/home_screen.dart';
@@ -11,6 +12,9 @@ import 'services/location_service.dart';
 import 'services/sms_service.dart';
 import 'services/call_simulator.dart';
 import 'services/whatsapp_service.dart';
+
+// CLAVE GLOBAL PARA DIALOGOS
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 @pragma("vm:entry-point")
 void callbackDispatcher() {
@@ -24,7 +28,7 @@ void callbackDispatcher() {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Workmanager().initialize(callbackDispatcher, isInDebugMode: false);
+  await Workmanager().initialize(callbackDispatcher);
   await HomeWidget.registerInteractivityCallback(panicWidgetCallback);
   await _requestCriticalPermissions();
   runApp(const HelpHumanApp());
@@ -33,12 +37,45 @@ void main() async {
 Future<void> _requestCriticalPermissions() async {
   final permissions = [
     Permission.location,
+    Permission.locationAlways,
     Permission.sms,
     Permission.phone,
     Permission.notification,
     Permission.systemAlertWindow,
   ];
-  await permissions.request();
+
+  Map<Permission, PermissionStatus> statuses = await permissions.request();
+
+  if (statuses[Permission.location]!.isDenied ||
+      statuses[Permission.locationAlways]!.isDenied) {
+    _showLocationPermissionDialog();
+  }
+}
+
+void _showLocationPermissionDialog() {
+  showDialog(
+    context: navigatorKey.currentContext!,
+    builder: (context) => AlertDialog(
+      title: const Text('Permiso de ubicación'),
+      content: const Text(
+        'Activa el GPS y "Permitir siempre" para enviar tu ubicación en emergencias.',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancelar'),
+        ),
+        ElevatedButton(
+          onPressed: () {
+            Navigator.pop(context);
+            openAppSettings();
+          },
+          style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+          child: const Text('Abrir ajustes'),
+        ),
+      ],
+    ),
+  );
 }
 
 @pragma("vm:entry-point")
@@ -78,6 +115,7 @@ class HelpHumanApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return OverlaySupport.global(
       child: MaterialApp(
+        navigatorKey: navigatorKey, // ← USADO
         title: 'Help Human',
         debugShowCheckedModeBanner: false,
         theme: ThemeData(

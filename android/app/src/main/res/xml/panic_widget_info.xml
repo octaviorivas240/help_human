@@ -1,0 +1,8 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android">
+    <initialLayout>@layout/panic_widget</initialLayout>
+    <updatePeriodMillis>1800000</updatePeriodMillis>
+    <minWidth>250dp</minWidth>
+    <minHeight>110dp</minHeight>
+    <previewImage>@drawable/panic_widget_preview</previewImage>
+</appwidget-provider>
