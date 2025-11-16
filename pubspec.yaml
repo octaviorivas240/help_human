@@ -1,0 +1,55 @@
+name: human_help
+description: "Botón de pánico con SMS, WhatsApp, llamada falsa y ubicación en tiempo real."
+publish_to: 'none'
+version: 1.0.0+1  # VERSIÓN PARA PLAY STORE
+
+environment:
+  sdk: ^3.9.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Utilidades y permisos
+  shared_preferences: ^2.3.0
+  geolocator: ^12.0.0
+  permission_handler: ^11.3.1
+  vibration: ^3.1.4
+
+  # Funciones principales
+  sms_advanced: ^1.1.0
+  flutter_phone_direct_caller: ^2.1.1
+  url_launcher: ^6.3.0
+  flutter_tts: ^4.0.2
+  workmanager: ^0.9.0+3
+  home_widget: ^0.8.1
+  overlay_support: ^2.1.0
+  share_plus: ^12.0.1  # ← AÑADIDO PARA COMPARTIR
+
+  # Extras
+  path_provider: ^2.1.1
+  uuid: ^4.5.0
+  flutter_callkit_incoming: ^3.0.0  # Para llamada falsa
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+  flutter_launcher_icons: ^0.13.1
+
+# ÍCONOS DE LA APP
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/icons/app_icon.png"
+  min_sdk_android: 21
+  adaptive_icon_background: "#FF0000"
+  adaptive_icon_foreground: "assets/icons/app_icon.png"
+  remove_alpha_ios: true
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/splash_logo.png
+    - assets/icons/app_icon.png
+    
