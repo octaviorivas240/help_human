@@ -1,47 +1,55 @@
 import 'package:sms_advanced/sms_advanced.dart';
 import '../models/user_data.dart';
-import 'dart:async';
 import 'package:flutter/material.dart';
 
-
-/// Servicio para enviar SMS de emergencia a los contactos guardados.
-/// Incluye nombre, mensaje personalizado y enlace de ubicación.
+/// Servicio para enviar SMS de emergencia.
+/// Usa `sms_advanced` + limpia números correctamente.
 class SmsService {
-  /// Envía el mensaje de pánico a todos los contactos de emergencia.
-  /// Retorna `true` si al menos un SMS se envió con éxito.
+  /// Envía SMS a todos los contactos de emergencia.
+  /// Retorna `true` si al menos uno se envió.
   static Future<bool> sendPanicSms({
     required UserData userData,
     required String locationLink,
   }) async {
     if (userData.emergencyContacts.isEmpty) {
-      debugPrint('SMS no enviado: no hay contactos de emergencia.');
+      debugPrint('SMS no enviado: no hay contactos.');
       return false;
     }
 
-    final String fullMessage = '''
+    final String fullMessage =
+        '''
+🚨 ¡AYUDA! ¡EMERGENCIA! 🚨
+Soy ${userData.name}
 ${userData.emergencyMessage}
 
-${userData.name}
 Ubicación: $locationLink
-'''.trim();
+'''
+            .trim();
 
     final SmsSender sender = SmsSender();
     bool anySent = false;
 
-    for (String phone in userData.emergencyContacts) {
+    for (String rawPhone in userData.emergencyContacts) {
       try {
-        // Limpiar número (quitar espacios, guiones, etc.)
-        final cleanPhone = phone.replaceAll(RegExp(r'[^\d+]'), '');
-        if (cleanPhone.length < 10) {
-          debugPrint('Número inválido: $phone');
+        // LIMPIAR NÚMERO: QUITAR TODO MENOS DÍGITOS Y +
+        String cleanPhone = rawPhone.replaceAll(RegExp(r'[^\d+]'), '');
+
+        // SI NO TIENE +, AGREGAR +52 (MÉXICO)
+        if (!cleanPhone.startsWith('+') && cleanPhone.length == 10) {
+          cleanPhone = '+52$cleanPhone';
+        }
+
+        if (cleanPhone.length < 11) {
+          debugPrint('Número inválido: $rawPhone → $cleanPhone');
           continue;
         }
 
-        await sender.sendSms(SmsMessage(cleanPhone, fullMessage));
+        final message = SmsMessage(cleanPhone, fullMessage);
+        await sender.sendSms(message);
         debugPrint('SMS enviado a: $cleanPhone');
         anySent = true;
       } catch (e) {
-        debugPrint('Error enviando SMS a $phone: $e');
+        debugPrint('Error SMS a $rawPhone: $e');
       }
     }
 

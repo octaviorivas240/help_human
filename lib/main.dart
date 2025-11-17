@@ -13,7 +13,7 @@ import 'services/sms_service.dart';
 import 'services/call_simulator.dart';
 import 'services/whatsapp_service.dart';
 
-// CLAVE GLOBAL PARA DIALOGOS
+// CLAVE GLOBAL PARA DIÁLOGOS
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 @pragma("vm:entry-point")
@@ -30,7 +30,10 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Workmanager().initialize(callbackDispatcher);
   await HomeWidget.registerInteractivityCallback(panicWidgetCallback);
+
+  // PEDIR PERMISOS AL INICIO
   await _requestCriticalPermissions();
+
   runApp(const HelpHumanApp());
 }
 
@@ -46,6 +49,7 @@ Future<void> _requestCriticalPermissions() async {
 
   Map<Permission, PermissionStatus> statuses = await permissions.request();
 
+  // SI FALTA UBICACIÓN → MOSTRAR DIÁLOGO
   if (statuses[Permission.location]!.isDenied ||
       statuses[Permission.locationAlways]!.isDenied) {
     _showLocationPermissionDialog();
@@ -55,6 +59,7 @@ Future<void> _requestCriticalPermissions() async {
 void _showLocationPermissionDialog() {
   showDialog(
     context: navigatorKey.currentContext!,
+    barrierDismissible: false,
     builder: (context) => AlertDialog(
       title: const Text('Permiso de ubicación'),
       content: const Text(
@@ -66,9 +71,9 @@ void _showLocationPermissionDialog() {
           child: const Text('Cancelar'),
         ),
         ElevatedButton(
-          onPressed: () {
+          onPressed: () async {
             Navigator.pop(context);
-            openAppSettings();
+            await openAppSettings(); // ← FUNCIONA CON permission_handler
           },
           style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
           child: const Text('Abrir ajustes'),
@@ -115,7 +120,7 @@ class HelpHumanApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return OverlaySupport.global(
       child: MaterialApp(
-        navigatorKey: navigatorKey, // ← USADO
+        navigatorKey: navigatorKey,
         title: 'Help Human',
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
