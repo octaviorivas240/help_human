@@ -1,58 +1,61 @@
-import 'package:sms_advanced/sms_advanced.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../models/user_data.dart';
 import 'package:flutter/material.dart';
 
-/// Servicio para enviar SMS de emergencia.
-/// Usa `sms_advanced` + limpia números correctamente.
+/// Servicio para enviar SMS de emergencia usando intent nativo
 class SmsService {
-  /// Envía SMS a todos los contactos de emergencia.
-  /// Retorna `true` si al menos uno se envió.
+  /// Envía SMS directo (abre la app de mensajes con texto prellenado)
   static Future<bool> sendPanicSms({
     required UserData userData,
     required String locationLink,
   }) async {
     if (userData.emergencyContacts.isEmpty) {
-      debugPrint('SMS no enviado: no hay contactos.');
+      debugPrint('SMS: No hay contactos');
       return false;
     }
 
-    final String fullMessage =
+    final String message =
         '''
-🚨 ¡AYUDA! ¡EMERGENCIA! 🚨
-Soy ${userData.name}
+🚨 ¡AYUDA! ¡EMERGENCIA HELP HUMAN! 🚨
+Soy ${userData.name.toUpperCase()}
+
 ${userData.emergencyMessage}
 
-Ubicación: $locationLink
-'''
+UBICACIÓN EN VIVO: $locationLink
+
+¡LLAMEN AL 911 INMEDIATAMENTE!
+    '''
             .trim();
 
-    final SmsSender sender = SmsSender();
-    bool anySent = false;
-
-    for (String rawPhone in userData.emergencyContacts) {
-      try {
-        // LIMPIAR NÚMERO: QUITAR TODO MENOS DÍGITOS Y +
-        String cleanPhone = rawPhone.replaceAll(RegExp(r'[^\d+]'), '');
-
-        // SI NO TIENE +, AGREGAR +52 (MÉXICO)
-        if (!cleanPhone.startsWith('+') && cleanPhone.length == 10) {
-          cleanPhone = '+52$cleanPhone';
-        }
-
-        if (cleanPhone.length < 11) {
-          debugPrint('Número inválido: $rawPhone → $cleanPhone');
-          continue;
-        }
-
-        final message = SmsMessage(cleanPhone, fullMessage);
-        await sender.sendSms(message);
-        debugPrint('SMS enviado a: $cleanPhone');
-        anySent = true;
-      } catch (e) {
-        debugPrint('Error SMS a $rawPhone: $e');
-      }
+    // Preparar números
+    List<String> phones = [];
+    for (String raw in userData.emergencyContacts) {
+      String clean = raw.replaceAll(RegExp(r'[^\d+]'), '');
+      if (clean.length == 10) clean = '+52$clean'; // México
+      if (clean.length >= 11) phones.add(clean);
     }
 
-    return anySent;
+    if (phones.isEmpty) return false;
+
+    // URI para SMS (envía a múltiples números)
+    final Uri smsUri = Uri(
+      scheme: 'sms',
+      path: phones.join(','),
+      queryParameters: {'body': Uri.encodeComponent(message)},
+    );
+
+    try {
+      if (await canLaunchUrl(smsUri)) {
+        await launchUrl(smsUri, mode: LaunchMode.externalApplication);
+        debugPrint('SMS enviado a ${phones.length} contactos');
+        return true;
+      } else {
+        debugPrint('No se puede abrir app de SMS');
+        return false;
+      }
+    } catch (e) {
+      debugPrint('Error SMS: $e');
+      return false;
+    }
   }
 }

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:home_widget/home_widget.dart';
 
-/// Widget para pantalla de inicio (Home Screen)
 class PanicHomeWidget extends StatelessWidget {
   const PanicHomeWidget({super.key});
 
@@ -15,20 +14,24 @@ class PanicHomeWidget extends StatelessWidget {
           child: GestureDetector(
             onTap: _triggerPanic,
             child: Container(
-              width: 70,
-              height: 70,
+              width: 80,
+              height: 80,
               decoration: const BoxDecoration(
-                color: Colors.red,
+                gradient: LinearGradient(
+                  colors: [Colors.red, Colors.redAccent],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
                 shape: BoxShape.circle,
                 boxShadow: [
-                  BoxShadow(color: Colors.black26, blurRadius: 8, offset: Offset(0, 4)),
+                  BoxShadow(
+                    color: Colors.black45,
+                    blurRadius: 12,
+                    offset: Offset(0, 6),
+                  ),
                 ],
               ),
-              child: const Icon(
-                Icons.warning_amber_rounded,
-                color: Colors.white,
-                size: 40,
-              ),
+              child: const Icon(Icons.emergency, color: Colors.white, size: 44),
             ),
           ),
         ),
@@ -36,17 +39,12 @@ class PanicHomeWidget extends StatelessWidget {
     );
   }
 
+  // ESTA ES LA FUNCIÓN QUE SE EJECUTA AL TOCAR EL WIDGET
   static Future<void> _triggerPanic() async {
-    // GUARDAR SEÑAL DE PÁNICO
-    await HomeWidget.saveWidgetData<String>(
-      'panic_trigger',
-      DateTime.now().toIso8601String(),
-    );
-
-    // ACTUALIZAR WIDGET (para que main.dart lo detecte)
+    await HomeWidget.saveWidgetData<String>('panic_trigger', 'TRIGGERED');
     await HomeWidget.updateWidget(
-      name: 'PanicHomeWidgetProvider', // Nombre del provider en Android
-      androidName: 'PanicHomeWidgetProvider',
+      name: 'PanicHomeWidget', // ← NOMBRE EXACTO DEL WIDGET
+      iOSName: 'PanicHomeWidget',
     );
   }
 }

@@ -1,8 +1,9 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android">
-    <initialLayout>@layout/panic_widget</initialLayout>
-    <updatePeriodMillis>1800000</updatePeriodMillis>
-    <minWidth>250dp</minWidth>
-    <minHeight>110dp</minHeight>
-    <previewImage>@drawable/panic_widget_preview</previewImage>
+    <initialLayout>@layout/panic_home_widget</initialLayout>
+    <updatePeriodMillis>0</updatePeriodMillis> <!-- No se actualiza automáticamente -->
+    <previewImage>@drawable/ic_launcher</previewImage>
+    <widgetCategory>keyguard|home_screen</widgetCategory>
+    <minWidth>70dp</minWidth>
+    <minHeight>70dp</minHeight>
 </appwidget-provider>
