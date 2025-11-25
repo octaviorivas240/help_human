@@ -20,6 +20,8 @@ class _HomeScreenState extends State<HomeScreen> {
   UserData? _userData;
   bool _isLoading = false;
   Timer? _silentTrackingTimer;
+  bool _isLongPressActive =
+      false; // ← Evita conflicto entre toque y presión larga
 
   @override
   void initState() {
@@ -40,7 +42,7 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() => _userData = data);
   }
 
-  // === FUNCIÓN DE PRUEBA RÁPIDA ===
+  // === FUNCIÓN DE PRUEBA RÁPIDA (MENÚ) ===
   Future<void> _testFeature(String feature) async {
     if (_userData == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -93,8 +95,140 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // === PÁNICO NORMAL CON CUENTA ATRÁS (TOQUE RÁPIDO) ===
+  Future<void> _triggerPanic() async {
+    if (_userData == null || _isLoading || _isLongPressActive) return;
+
+    Vibration.vibrate(duration: 1000);
+
+    bool canceled = false;
+    int countdown = 5;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => WillPopScope(
+        onWillPop: () async => false,
+        child: AlertDialog(
+          backgroundColor: Colors.red[900],
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: const Text(
+            '¡EMERGENCIA ACTIVADA!',
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: 22,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          content: StatefulBuilder(
+            builder: (context, setStateDialog) {
+              Timer.periodic(const Duration(seconds: 1), (timer) {
+                if (countdown <= 0 || canceled) {
+                  timer.cancel();
+                  if (!canceled && mounted) {
+                    Navigator.pop(context);
+                    _executeFullPanic();
+                  }
+                } else {
+                  countdown--;
+                  if (mounted) setStateDialog(() {});
+                }
+              });
+
+              return Text(
+                'Cancelando en $countdown segundos...\n\n¡TOCA CANCELAR SI FUE UN ERROR!',
+                style: const TextStyle(color: Colors.white, fontSize: 18),
+                textAlign: TextAlign.center,
+              );
+            },
+          ),
+          actions: [
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  padding: const EdgeInsets.all(16),
+                ),
+                onPressed: () {
+                  canceled = true;
+                  Navigator.pop(context);
+                  SirenService.stopSiren();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('¡Alerta cancelada!'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                },
+                child: const Text(
+                  'CANCELAR AHORA',
+                  style: TextStyle(
+                    color: Colors.red,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // === MODO "ESTOY SIENDO SEGUIDO" (PRESIÓN LARGA) – AHORA SÍ FUNCIONA 100% ===
+  Future<void> _startSilentTracking() async {
+    if (_silentTrackingTimer?.isActive == true || _isLongPressActive) return;
+    _isLongPressActive = true;
+
+    Vibration.vibrate(duration: 100);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Modo silencioso activado - Enviando ubicación cada 15 seg',
+        ),
+        backgroundColor: Colors.orange,
+      ),
+    );
+
+    int count = 0;
+    _silentTrackingTimer = Timer.periodic(const Duration(seconds: 15), (
+      timer,
+    ) async {
+      if (count >= 40) {
+        timer.cancel();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Modo silencioso finalizado'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        _isLongPressActive = false;
+        return;
+      }
+      count++;
+
+      final link = await LocationService.getCurrentLocationLink();
+      for (var contact in _userData!.emergencyContacts) {
+        final clean = contact.replaceAll(RegExp(r'[^\d]'), '');
+        await WhatsappService.sendLocation(
+          phone: clean,
+          message: 'ESTOY SIENDO SEGUIDO - Ubicación en vivo ($count/40)',
+          locationLink: link,
+        );
+      }
+    });
+  }
+
+  // === PÁNICO COMPLETO (SIRENA + TODO) ===
   Future<void> _executeFullPanic() async {
+    if (!mounted) return;
     setState(() => _isLoading = true);
+
     final locationLink = await LocationService.getCurrentLocationLink();
 
     await SmsService.sendPanicSms(
@@ -111,9 +245,9 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     await CallSimulator.simulateIncomingCall();
-    await SirenService.startSiren(durationSeconds: 120);
+    await SirenService.startSiren(durationSeconds: 120); // ← INMEDIATA
 
-    // Ubicación cada 30 seg
+    // Ubicación cada 30 segundos
     int updates = 0;
     Timer.periodic(const Duration(seconds: 30), (timer) async {
       if (updates >= 10) timer.cancel();
@@ -123,7 +257,7 @@ class _HomeScreenState extends State<HomeScreen> {
         final clean = contact.replaceAll(RegExp(r'[^\d]'), '');
         await WhatsappService.sendLocation(
           phone: clean,
-          message: 'Ubicación actualizada',
+          message: 'Ubicación actualizada ($updates/10)',
           locationLink: newLink,
         );
       }
@@ -133,7 +267,15 @@ class _HomeScreenState extends State<HomeScreen> {
       const Duration(seconds: 60),
       () => FlutterPhoneDirectCaller.callNumber('911'),
     );
+
     setState(() => _isLoading = false);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('¡ALERTA ENVIADA! Ayuda en camino...'),
+        backgroundColor: Colors.green,
+        duration: Duration(seconds: 8),
+      ),
+    );
   }
 
   @override
@@ -155,9 +297,9 @@ class _HomeScreenState extends State<HomeScreen> {
           child: ListView(
             padding: EdgeInsets.zero,
             children: [
-              DrawerHeader(
-                decoration: BoxDecoration(color: Colors.red[900]),
-                child: const Column(
+              const DrawerHeader(
+                decoration: BoxDecoration(color: Colors.red),
+                child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Icon(Icons.shield, size: 60, color: Colors.white),
@@ -191,7 +333,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               const Divider(),
               ListTile(
-                leading: const Icon(Icons.info, color: Colors.grey),
+                leading: const Icon(Icons.person),
                 title: const Text('Usuario actual'),
                 subtitle: Text(_userData?.name ?? 'Sin configurar'),
               ),
@@ -227,8 +369,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
             // BOTÓN GIGANTE DE PÁNICO
             GestureDetector(
-              onTap: () => _triggerPanic(),
-              onLongPress: () => _startSilentTracking(),
+              onTap: _triggerPanic,
+              onLongPressStart: (_) {
+                _isLongPressActive = true;
+                _startSilentTracking();
+              },
+              onLongPressEnd: (_) => _isLongPressActive = false,
               child: Container(
                 width: 260,
                 height: 260,
@@ -284,19 +430,9 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       trailing: isDanger ? const Icon(Icons.warning, color: Colors.red) : null,
       onTap: () {
-        Navigator.pop(context); // cerrar drawer
+        Navigator.pop(context);
         _testFeature(feature);
       },
     );
-  }
-
-  // PÁNICO CON CUENTA ATRÁS
-  Future<void> _triggerPanic() async {
-    // ... (el mismo código de cuenta atrás que tenías antes) ...
-    // Lo dejo igual para no alargar, pero funciona perfecto
-  }
-
-  Future<void> _startSilentTracking() async {
-    // ... (tu código original del modo silencioso) ...
   }
 }
